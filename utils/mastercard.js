@@ -3,9 +3,9 @@ const axios = require('axios');
 const MPGS_VERSION = '73';
 
 function getConfig() {
-  const merchantId = process.env.MPGS_MERCHANT_ID;
-  const apiPassword = process.env.MPGS_API_PASSWORD;
-  const gatewayUrl = process.env.MPGS_GATEWAY_URL || 'https://mtf.gateway.mastercard.com';
+  const merchantId = (process.env.MPGS_MERCHANT_ID || '').trim();
+  const apiPassword = (process.env.MPGS_API_PASSWORD || '').trim();
+  const gatewayUrl = (process.env.MPGS_GATEWAY_URL || 'https://mtf.gateway.mastercard.com').trim();
 
   if (!merchantId || !apiPassword) {
     throw new Error('Mastercard gateway credentials not configured');

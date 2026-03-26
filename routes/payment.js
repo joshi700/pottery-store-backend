@@ -73,7 +73,7 @@ router.post('/create-order', protect, async (req, res) => {
     });
 
     // Build the return URL — frontend will verify payment on this page
-    const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+    const clientUrl = (process.env.CLIENT_URL || 'http://localhost:5173').trim();
     const returnUrl = `${clientUrl}/order-success?orderId=${order._id}&orderNumber=${order.orderNumber}`;
 
     // Create Mastercard Hosted Checkout session

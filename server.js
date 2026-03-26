@@ -70,7 +70,8 @@ app.use('/acp', require('./routes/acp'));
 app.use('/acp', require('./routes/acpProductFeed'));
 
 // UCP (Universal Commerce Protocol) routes — Google AI Surface integration
-app.use('/', require('./routes/ucp'));
+// Temporarily disabled — will be re-enabled after fixing Vercel runtime issue
+// app.use('/', require('./routes/ucp'));
 
 // Health check
 app.get('/health', (req, res) => {
