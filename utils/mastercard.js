@@ -15,57 +15,62 @@ function getConfig() {
 }
 
 /**
- * Create a Hosted Checkout session using the same pattern as HCO-Payment-Page-Backend
+ * Process a Google Pay payment through MPGS
+ * Uses the PAY operation with the encrypted Google Pay token
  */
-async function createCheckoutSession(orderId, amount, currency, returnUrl, description) {
+async function processGooglePayPayment(orderId, transactionId, amount, currency, googlePayToken) {
   const { merchantId, apiPassword, gatewayUrl } = getConfig();
 
-  // Build the MPGS API URL — same as HCO backend
-  const url = `${gatewayUrl}/api/rest/version/${MPGS_VERSION}/merchant/${merchantId}/session`;
+  // MPGS PAY endpoint
+  const url = `${gatewayUrl}/api/rest/version/${MPGS_VERSION}/merchant/${merchantId}/order/${orderId}/transaction/${transactionId}`;
 
-  // Auth: merchant.<MID>:<password> — same as HCO backend
   const username = `merchant.${merchantId}`;
   const auth = Buffer.from(`${username}:${apiPassword}`).toString('base64');
 
+  // Parse the Google Pay payment token
+  // Google Pay returns paymentMethodData.tokenizationData.token as a JSON string
+  let tokenData;
+  try {
+    tokenData = typeof googlePayToken === 'string' ? JSON.parse(googlePayToken) : googlePayToken;
+  } catch (e) {
+    tokenData = googlePayToken;
+  }
+
   const payload = {
-    apiOperation: 'INITIATE_CHECKOUT',
-    interaction: {
-      operation: 'PURCHASE',
-      returnUrl,
-      merchant: {
-        name: 'Meenakshi Pottery',
-      },
-      displayControl: {
-        billingAddress: 'HIDE',
-        shipping: 'HIDE',
-      },
-    },
+    apiOperation: 'PAY',
     order: {
-      id: orderId,
       amount: String(amount),
       currency: currency.toUpperCase(),
-      description: description || `Pottery Store Order ${orderId}`,
+    },
+    sourceOfFunds: {
+      type: 'CARD',
+      provided: {
+        card: {
+          devicePayment: {
+            paymentToken: JSON.stringify(tokenData),
+          },
+        },
+      },
     },
   };
 
-  console.log('Creating MPGS session:', { url, merchantId, orderId, amount, currency });
+  console.log('Processing Google Pay via MPGS:', { url, merchantId, orderId, transactionId, amount, currency });
 
-  const response = await axios.post(url, payload, {
+  const response = await axios.put(url, payload, {
     headers: {
       'Authorization': `Basic ${auth}`,
       'Content-Type': 'application/json',
     },
   });
 
-  console.log('MPGS session created:', {
-    sessionId: response.data.session?.id,
-    successIndicator: response.data.successIndicator,
+  console.log('MPGS Google Pay response:', {
+    result: response.data.result,
+    order: response.data.order?.id,
+    transaction: response.data.transaction?.id,
+    authCode: response.data.transaction?.authorizationCode,
   });
 
-  return {
-    sessionId: response.data.session.id,
-    successIndicator: response.data.successIndicator,
-  };
+  return response.data;
 }
 
 /**
@@ -89,7 +94,7 @@ async function retrieveOrder(orderId) {
 }
 
 module.exports = {
-  createCheckoutSession,
+  processGooglePayPayment,
   retrieveOrder,
   MPGS_VERSION,
   getConfig,

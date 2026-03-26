@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
-const { createCheckoutSession, retrieveOrder, MPGS_VERSION, getConfig } = require('../utils/mastercard');
+const { processGooglePayPayment, retrieveOrder, MPGS_VERSION, getConfig } = require('../utils/mastercard');
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 
 // @route   POST /api/payment/create-order
-// @desc    Create order and Mastercard Hosted Checkout session
+// @desc    Create order in database (no MPGS session needed for Google Pay)
 // @access  Private
 router.post('/create-order', protect, async (req, res) => {
   try {
@@ -72,26 +72,8 @@ router.post('/create-order', protect, async (req, res) => {
       paymentStatus: 'pending'
     });
 
-    // Build the return URL — frontend will verify payment on this page
-    const clientUrl = (process.env.CLIENT_URL || 'http://localhost:5173').trim();
-    const returnUrl = `${clientUrl}/order-success?orderId=${order._id}&orderNumber=${order.orderNumber}`;
-
-    // Create Mastercard Hosted Checkout session
-    const { sessionId, successIndicator } = await createCheckoutSession(
-      order.orderNumber,
-      amount,
-      'USD',
-      returnUrl,
-      `Order ${order.orderNumber}`
-    );
-
-    // Save MPGS session info on the order
-    order.mpgsSessionId = sessionId;
-    order.mpgsSuccessIndicator = successIndicator;
-    await order.save();
-
-    // Return session info + gateway config so frontend can load the checkout script
-    const { gatewayUrl } = getConfig();
+    // Return order info + Google Pay config
+    const { merchantId, gatewayUrl } = getConfig();
 
     res.json({
       success: true,
@@ -102,11 +84,13 @@ router.post('/create-order', protect, async (req, res) => {
         orderId: order._id,
         orderNumber: order.orderNumber
       },
-      sessionId,
-      successIndicator,
-      gatewayUrl,
-      apiVersion: MPGS_VERSION,
-      merchantName: 'Meenakshi Pottery'
+      // Google Pay + MPGS config for frontend
+      googlePay: {
+        gateway: 'mpgs',
+        gatewayMerchantId: merchantId,
+        merchantName: 'Meenakshi Pottery',
+        environment: (gatewayUrl.includes('mtf') || gatewayUrl.includes('test')) ? 'TEST' : 'PRODUCTION',
+      }
     });
   } catch (error) {
     console.error('Create order error:', error.response?.data || error.message);
@@ -119,18 +103,24 @@ router.post('/create-order', protect, async (req, res) => {
         name: error.name,
         code: error.code,
         status: error.response?.status,
-        mpgsError: error.response?.data,
       }
     });
   }
 });
 
-// @route   POST /api/payment/verify
-// @desc    Verify Mastercard payment after return from hosted checkout
+// @route   POST /api/payment/process-googlepay
+// @desc    Process Google Pay payment token through MPGS
 // @access  Private
-router.post('/verify', protect, async (req, res) => {
+router.post('/process-googlepay', protect, async (req, res) => {
   try {
-    const { orderId, resultIndicator } = req.body;
+    const { orderId, paymentData } = req.body;
+
+    if (!orderId || !paymentData) {
+      return res.status(400).json({
+        success: false,
+        message: 'Order ID and payment data are required'
+      });
+    }
 
     const order = await Order.findById(orderId).populate('items.product');
 
@@ -149,16 +139,45 @@ router.post('/verify', protect, async (req, res) => {
       });
     }
 
-    // Check if the resultIndicator matches the successIndicator
-    const paymentSuccessful = resultIndicator && resultIndicator === order.mpgsSuccessIndicator;
+    // Don't process already paid orders
+    if (order.paymentStatus === 'paid') {
+      return res.status(400).json({
+        success: false,
+        message: 'Order already paid'
+      });
+    }
 
-    if (paymentSuccessful) {
+    // Extract the Google Pay token from payment data
+    const googlePayToken = paymentData.paymentMethodData?.tokenizationData?.token;
+
+    if (!googlePayToken) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid Google Pay payment data — missing token'
+      });
+    }
+
+    // Generate a unique transaction ID
+    const transactionId = `TXN${Date.now()}`;
+
+    // Process payment through MPGS
+    const mpgsResponse = await processGooglePayPayment(
+      order.orderNumber,
+      transactionId,
+      order.total,
+      'USD',
+      googlePayToken
+    );
+
+    // Check if payment was successful
+    if (mpgsResponse.result === 'SUCCESS') {
       order.paymentStatus = 'paid';
       order.orderStatus = 'received';
+      order.mpgsTransactionId = mpgsResponse.transaction?.id || transactionId;
       order.statusHistory.push({
         status: 'received',
         updatedAt: new Date(),
-        note: 'Payment received via Mastercard Hosted Checkout'
+        note: `Payment received via Google Pay (MPGS Auth: ${mpgsResponse.transaction?.authorizationCode || 'N/A'})`
       });
 
       await order.save();
@@ -173,7 +192,7 @@ router.post('/verify', protect, async (req, res) => {
 
       res.json({
         success: true,
-        message: 'Payment verified successfully',
+        message: 'Payment processed successfully',
         order: {
           id: order._id,
           orderNumber: order.orderNumber,
@@ -183,38 +202,79 @@ router.post('/verify', protect, async (req, res) => {
       });
     } else {
       order.paymentStatus = 'failed';
+      order.statusHistory.push({
+        status: 'payment_failed',
+        updatedAt: new Date(),
+        note: `MPGS response: ${mpgsResponse.result || 'UNKNOWN'}`
+      });
       await order.save();
 
       res.status(400).json({
         success: false,
-        message: 'Payment verification failed'
+        message: 'Payment processing failed',
+        mpgsResult: mpgsResponse.result,
       });
     }
   } catch (error) {
-    console.error('Verify payment error:', error);
+    console.error('Process Google Pay error:', error.response?.data || error.message);
+    console.error('Full error stack:', error.stack);
     res.status(500).json({
       success: false,
-      message: 'Payment verification failed',
-      error: error.message
+      message: 'Payment processing failed',
+      error: error.response?.data?.error?.explanation || error.message,
+      debug: {
+        name: error.name,
+        code: error.code,
+        status: error.response?.status,
+        mpgsError: error.response?.data,
+      }
+    });
+  }
+});
+
+// @route   GET /api/payment/config
+// @desc    Get Google Pay + MPGS config for frontend
+// @access  Public
+router.get('/config', (req, res) => {
+  try {
+    const { merchantId, gatewayUrl } = getConfig();
+    const isTest = gatewayUrl.includes('mtf') || gatewayUrl.includes('test');
+
+    res.json({
+      success: true,
+      googlePay: {
+        gateway: 'mpgs',
+        gatewayMerchantId: merchantId,
+        merchantName: 'Meenakshi Pottery',
+        environment: isTest ? 'TEST' : 'PRODUCTION',
+        allowedCardNetworks: ['VISA', 'MASTERCARD', 'AMEX', 'DISCOVER'],
+        allowedAuthMethods: ['PAN_ONLY', 'CRYPTOGRAM_3DS'],
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Payment configuration not available',
     });
   }
 });
 
 // @route   GET /api/payment/config-check
-// @desc    Check if MPGS config is set (no secrets exposed)
+// @desc    Check if MPGS config is set (debug)
 // @access  Public
 router.get('/config-check', (req, res) => {
-  const hasMerchantId = !!process.env.MPGS_MERCHANT_ID;
-  const hasApiPassword = !!process.env.MPGS_API_PASSWORD;
-  const gatewayUrl = process.env.MPGS_GATEWAY_URL || 'https://mtf.gateway.mastercard.com (default)';
+  const merchantId = (process.env.MPGS_MERCHANT_ID || '').trim();
+  const hasApiPassword = !!(process.env.MPGS_API_PASSWORD || '').trim();
+  const gatewayUrl = (process.env.MPGS_GATEWAY_URL || 'https://mtf.gateway.mastercard.com').trim();
+  const clientUrl = (process.env.CLIENT_URL || '').trim();
 
   res.json({
     success: true,
     config: {
-      MPGS_MERCHANT_ID: hasMerchantId ? `SET (${process.env.MPGS_MERCHANT_ID})` : 'NOT SET',
+      MPGS_MERCHANT_ID: merchantId ? `SET (${merchantId})` : 'NOT SET',
       MPGS_API_PASSWORD: hasApiPassword ? 'SET (hidden)' : 'NOT SET',
       MPGS_GATEWAY_URL: gatewayUrl,
-      CLIENT_URL: process.env.CLIENT_URL || 'NOT SET',
+      CLIENT_URL: clientUrl || 'NOT SET',
     }
   });
 });
