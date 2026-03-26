@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const Product = require('../models/Product');
-const { protect } = require('../middleware/auth');
 const { isAdmin } = require('../middleware/admin');
 
 // @route   GET /api/products
@@ -80,7 +79,7 @@ router.get('/:id', async (req, res) => {
 // @route   POST /api/products
 // @desc    Create new product
 // @access  Private/Admin
-router.post('/', protect, isAdmin, async (req, res) => {
+router.post('/', isAdmin, async (req, res) => {
   try {
     const product = await Product.create(req.body);
     
@@ -100,7 +99,7 @@ router.post('/', protect, isAdmin, async (req, res) => {
 // @route   PUT /api/products/:id
 // @desc    Update product
 // @access  Private/Admin
-router.put('/:id', protect, isAdmin, async (req, res) => {
+router.put('/:id', isAdmin, async (req, res) => {
   try {
     let product = await Product.findById(req.params.id);
     
@@ -133,7 +132,7 @@ router.put('/:id', protect, isAdmin, async (req, res) => {
 // @route   DELETE /api/products/:id
 // @desc    Delete product
 // @access  Private/Admin
-router.delete('/:id', protect, isAdmin, async (req, res) => {
+router.delete('/:id', isAdmin, async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
     

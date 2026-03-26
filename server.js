@@ -63,6 +63,7 @@ app.use('/api/auth', require('./routes/googleAuth'));
 app.use('/api/products', require('./routes/products'));
 app.use('/api/orders', require('./routes/orders'));
 app.use('/api/payment', require('./routes/payment'));
+app.use('/api/admin/auth', require('./routes/adminAuth'));
 app.use('/api/agent', require('./routes/agent'));
 
 // ACP (Agentic Commerce Protocol) routes

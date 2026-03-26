@@ -46,7 +46,6 @@ router.post('/register', async (req, res) => {
         email: user.email,
         name: user.name,
         phone: user.phone,
-        isAdmin: user.isAdmin
       }
     });
   } catch (error) {
@@ -102,7 +101,6 @@ router.post('/login', async (req, res) => {
         email: user.email,
         name: user.name,
         phone: user.phone,
-        isAdmin: user.isAdmin
       }
     });
   } catch (error) {
@@ -128,7 +126,6 @@ router.get('/me', protect, async (req, res) => {
         email: user.email,
         name: user.name,
         phone: user.phone,
-        isAdmin: user.isAdmin,
         shippingAddresses: user.shippingAddresses,
         billingAddresses: user.billingAddresses
       }

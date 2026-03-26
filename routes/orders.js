@@ -3,6 +3,8 @@ const router = express.Router();
 const Order = require('../models/Order');
 const { protect } = require('../middleware/auth');
 const { isAdmin } = require('../middleware/admin');
+const jwt = require('jsonwebtoken');
+const Admin = require('../models/Admin');
 
 // @route   GET /api/orders/my-orders
 // @desc    Get logged in user's orders
@@ -29,9 +31,20 @@ router.get('/my-orders', protect, async (req, res) => {
 
 // @route   GET /api/orders/:id
 // @desc    Get order by ID
-// @access  Private
-router.get('/:id', protect, async (req, res) => {
+// @access  Private (customer or admin)
+router.get('/:id', async (req, res) => {
   try {
+    let token;
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+      token = req.headers.authorization.split(' ')[1];
+    }
+
+    if (!token) {
+      return res.status(401).json({ success: false, message: 'Not authorized' });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
     const order = await Order.findById(req.params.id)
       .populate('user', 'name email phone')
       .populate('items.product', 'name images price');
@@ -43,8 +56,11 @@ router.get('/:id', protect, async (req, res) => {
       });
     }
 
-    // Check if user owns the order or is admin
-    if (order.user._id.toString() !== req.user.id && !req.user.isAdmin) {
+    // Allow if admin token or if customer owns the order
+    const isAdminToken = decoded.isAdmin && await Admin.findById(decoded.id);
+    const isOwner = order.user._id.toString() === decoded.id;
+
+    if (!isAdminToken && !isOwner) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to view this order'
@@ -67,7 +83,7 @@ router.get('/:id', protect, async (req, res) => {
 // @route   GET /api/orders
 // @desc    Get all orders (admin)
 // @access  Private/Admin
-router.get('/', protect, isAdmin, async (req, res) => {
+router.get('/', isAdmin, async (req, res) => {
   try {
     const { status, paymentStatus, startDate, endDate, limit = 50, page = 1 } = req.query;
 
@@ -122,7 +138,7 @@ router.get('/', protect, isAdmin, async (req, res) => {
 // @route   PUT /api/orders/:id/status
 // @desc    Update order status
 // @access  Private/Admin
-router.put('/:id/status', protect, isAdmin, async (req, res) => {
+router.put('/:id/status', isAdmin, async (req, res) => {
   try {
     const { status, note, trackingNumber, shippingCarrier, estimatedDelivery } = req.body;
 
@@ -173,7 +189,7 @@ router.put('/:id/status', protect, isAdmin, async (req, res) => {
 // @route   GET /api/orders/stats/dashboard
 // @desc    Get order statistics for admin dashboard
 // @access  Private/Admin
-router.get('/stats/dashboard', protect, isAdmin, async (req, res) => {
+router.get('/stats/dashboard', isAdmin, async (req, res) => {
   try {
     const totalOrders = await Order.countDocuments();
     const pendingOrders = await Order.countDocuments({ orderStatus: 'received' });
