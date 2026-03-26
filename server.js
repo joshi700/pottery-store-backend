@@ -69,6 +69,9 @@ app.use('/api/agent', require('./routes/agent'));
 app.use('/acp', require('./routes/acp'));
 app.use('/acp', require('./routes/acpProductFeed'));
 
+// UCP (Universal Commerce Protocol) routes — Google AI Surface integration
+app.use('/', require('./routes/ucp'));
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({
@@ -90,7 +93,9 @@ app.get('/', (req, res) => {
       orders: '/api/orders',
       payment: '/api/payment',
       acp_checkout: '/acp/checkout_sessions',
-      acp_product_feed: '/acp/products.json'
+      acp_product_feed: '/acp/products.json',
+      ucp_profile: '/.well-known/ucp',
+      ucp_checkout_sessions: '/checkout-sessions'
     }
   });
 });
