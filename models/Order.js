@@ -27,7 +27,6 @@ const orderSchema = new mongoose.Schema({
   },
   orderNumber: {
     type: String,
-    required: true,
     unique: true
   },
   items: [orderItemSchema],
@@ -148,8 +147,8 @@ const orderSchema = new mongoose.Schema({
   }
 });
 
-// Generate order number
-orderSchema.pre('save', async function(next) {
+// Generate order number before validation so 'required' checks don't fail
+orderSchema.pre('validate', async function(next) {
   if (!this.orderNumber) {
     const date = new Date();
     const year = date.getFullYear();

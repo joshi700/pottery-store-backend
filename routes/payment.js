@@ -110,10 +110,17 @@ router.post('/create-order', protect, async (req, res) => {
     });
   } catch (error) {
     console.error('Create order error:', error.response?.data || error.message);
+    console.error('Full error stack:', error.stack);
     res.status(500).json({
       success: false,
       message: 'Failed to create order',
-      error: error.response?.data?.error?.explanation || error.message
+      error: error.response?.data?.error?.explanation || error.message,
+      debug: {
+        name: error.name,
+        code: error.code,
+        status: error.response?.status,
+        mpgsError: error.response?.data,
+      }
     });
   }
 });
