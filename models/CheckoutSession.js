@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
 
 const lineItemSchema = new mongoose.Schema({
   id: { type: String, required: true },
@@ -42,7 +42,7 @@ const checkoutSessionSchema = new mongoose.Schema({
     type: String,
     unique: true,
     required: true,
-    default: () => `cs_${uuidv4().replace(/-/g, '')}`
+    default: () => `cs_${crypto.randomUUID().replace(/-/g, '')}`
   },
   status: {
     type: String,

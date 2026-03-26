@@ -1,16 +1,18 @@
 const Stripe = require('stripe');
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+let stripe;
+function getStripe() {
+  if (!stripe) {
+    if (!process.env.STRIPE_SECRET_KEY) {
+      throw new Error('STRIPE_SECRET_KEY is not configured');
+    }
+    stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+  }
+  return stripe;
+}
 
-/**
- * Create a Stripe PaymentIntent for ACP checkout
- * @param {number} amount - Amount in minor units (paise)
- * @param {string} currency - ISO 4217 currency code (e.g., 'inr')
- * @param {object} metadata - Key-value metadata for the payment
- * @returns {object} Stripe PaymentIntent
- */
 async function createPaymentIntent(amount, currency, metadata = {}) {
-  return stripe.paymentIntents.create({
+  return getStripe().paymentIntents.create({
     amount,
     currency,
     metadata,
@@ -18,50 +20,28 @@ async function createPaymentIntent(amount, currency, metadata = {}) {
   });
 }
 
-/**
- * Confirm a PaymentIntent with a payment method
- * @param {string} paymentIntentId - Stripe PaymentIntent ID
- * @param {string} paymentMethodId - Stripe PaymentMethod ID or token
- * @returns {object} Confirmed PaymentIntent
- */
 async function confirmPaymentIntent(paymentIntentId, paymentMethodId) {
-  return stripe.paymentIntents.confirm(paymentIntentId, {
+  return getStripe().paymentIntents.confirm(paymentIntentId, {
     payment_method: paymentMethodId
   });
 }
 
-/**
- * Capture a PaymentIntent (if using manual capture)
- * @param {string} paymentIntentId - Stripe PaymentIntent ID
- * @returns {object} Captured PaymentIntent
- */
 async function capturePaymentIntent(paymentIntentId) {
-  return stripe.paymentIntents.capture(paymentIntentId);
+  return getStripe().paymentIntents.capture(paymentIntentId);
 }
 
-/**
- * Create a refund for a PaymentIntent
- * @param {string} paymentIntentId - Stripe PaymentIntent ID
- * @param {number} amount - Amount to refund in minor units (optional, full refund if omitted)
- * @returns {object} Stripe Refund
- */
 async function createRefund(paymentIntentId, amount) {
   const params = { payment_intent: paymentIntentId };
   if (amount) params.amount = amount;
-  return stripe.refunds.create(params);
+  return getStripe().refunds.create(params);
 }
 
-/**
- * Retrieve a PaymentIntent
- * @param {string} paymentIntentId - Stripe PaymentIntent ID
- * @returns {object} Stripe PaymentIntent
- */
 async function getPaymentIntent(paymentIntentId) {
-  return stripe.paymentIntents.retrieve(paymentIntentId);
+  return getStripe().paymentIntents.retrieve(paymentIntentId);
 }
 
 module.exports = {
-  stripe,
+  getStripe,
   createPaymentIntent,
   confirmPaymentIntent,
   capturePaymentIntent,

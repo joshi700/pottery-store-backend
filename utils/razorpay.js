@@ -1,11 +1,19 @@
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
 
-// Initialize Razorpay instance
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET
-});
+let razorpay;
+function getRazorpay() {
+  if (!razorpay) {
+    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+      throw new Error('Razorpay credentials are not configured');
+    }
+    razorpay = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET
+    });
+  }
+  return razorpay;
+}
 
 // Create Razorpay order
 exports.createRazorpayOrder = async (amount, receipt, notes = {}) => {
@@ -17,7 +25,7 @@ exports.createRazorpayOrder = async (amount, receipt, notes = {}) => {
       notes: notes
     };
 
-    const order = await razorpay.orders.create(options);
+    const order = await getRazorpay().orders.create(options);
     return order;
   } catch (error) {
     throw new Error(`Razorpay order creation failed: ${error.message}`);
@@ -42,7 +50,7 @@ exports.verifyPaymentSignature = (orderId, paymentId, signature) => {
 // Fetch payment details
 exports.getPaymentDetails = async (paymentId) => {
   try {
-    const payment = await razorpay.payments.fetch(paymentId);
+    const payment = await getRazorpay().payments.fetch(paymentId);
     return payment;
   } catch (error) {
     throw new Error(`Failed to fetch payment details: ${error.message}`);
@@ -63,4 +71,4 @@ exports.verifyWebhookSignature = (body, signature, secret) => {
   }
 };
 
-module.exports.razorpay = razorpay;
+module.exports.getRazorpay = getRazorpay;
