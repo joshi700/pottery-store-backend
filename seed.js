@@ -58,8 +58,8 @@ const seedDatabase = async () => {
         description: 'Set of 2 elegant white ceramic plates with a smooth matte finish. Perfect for everyday dining or special occasions.',
         price: 1899,
         images: [
-          'https://images.unsplash.com/photo-1610288672862-3d6f3c2c7d91?w=800',
-          'https://images.unsplash.com/photo-1615485500834-bc10199bc255?w=800'
+          'https://images.unsplash.com/photo-1590422749897-47036da0b0ff?w=800',
+          'https://images.unsplash.com/photo-1610701596007-11502861dcfa?w=800'
         ],
         category: 'plates',
         quantity: 1,
@@ -121,7 +121,7 @@ const seedDatabase = async () => {
         description: 'Large oval serving platter with a beautiful rustic finish. Ideal for entertaining guests.',
         price: 1799,
         images: [
-          'https://images.unsplash.com/photo-1610288672862-3d6f3c2c7d91?w=800'
+          'https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?w=800'
         ],
         category: 'plates',
         quantity: 1,
@@ -141,7 +141,7 @@ const seedDatabase = async () => {
         description: 'Small decorative pot with intricate handpainted designs. Great for small plants or as a trinket holder.',
         price: 899,
         images: [
-          'https://images.unsplash.com/photo-1610016302534-828f0f697d3f?w=800'
+          'https://images.unsplash.com/photo-1612196808214-b8e1d6145a8c?w=800'
         ],
         category: 'decorative',
         quantity: 1,

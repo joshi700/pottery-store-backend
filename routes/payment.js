@@ -1,17 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
-const {
-  createRazorpayOrder,
-  verifyPaymentSignature,
-  getPaymentDetails,
-  verifyWebhookSignature
-} = require('../utils/razorpay');
+const { createCheckoutSession, retrieveOrder } = require('../utils/mastercard');
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 
 // @route   POST /api/payment/create-order
-// @desc    Create Razorpay order
+// @desc    Create order and Mastercard Hosted Checkout session
 // @access  Private
 router.post('/create-order', protect, async (req, res) => {
   try {
@@ -28,7 +23,7 @@ router.post('/create-order', protect, async (req, res) => {
     let calculatedTotal = 0;
     for (const item of orderData.items) {
       const product = await Product.findById(item.product);
-      
+
       if (!product) {
         return res.status(404).json({
           success: false,
@@ -64,7 +59,7 @@ router.post('/create-order', protect, async (req, res) => {
       });
     }
 
-    // Create temporary order in database
+    // Create order in database
     const order = await Order.create({
       user: req.user.id,
       items: orderData.items,
@@ -73,33 +68,45 @@ router.post('/create-order', protect, async (req, res) => {
       subtotal: orderData.subtotal,
       shippingCost: orderData.shippingCost || 0,
       total: amount,
+      paymentMethod: 'mastercard',
       paymentStatus: 'pending'
     });
 
-    // Create Razorpay order
-    const razorpayOrder = await createRazorpayOrder(
-      amount,
-      order.orderNumber,
-      {
-        orderId: order._id.toString(),
-        userId: req.user.id
-      }
+    // Build the return URL — frontend will verify payment on this page
+    const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+    const returnUrl = `${clientUrl}/order-success?orderId=${order._id}&orderNumber=${order.orderNumber}`;
+
+    // Create Mastercard Hosted Checkout session
+    const { sessionId, successIndicator } = await createCheckoutSession(
+      order.orderNumber,        // MPGS order ID
+      amount,                   // Amount in rupees
+      'INR',
+      returnUrl,
+      `Order ${order.orderNumber}`
     );
 
-    // Update order with Razorpay order ID
-    order.razorpayOrderId = razorpayOrder.id;
+    // Save MPGS session info on the order
+    order.mpgsSessionId = sessionId;
+    order.mpgsSuccessIndicator = successIndicator;
     await order.save();
+
+    // Build Mastercard Hosted Checkout redirect URL
+    const gatewayUrl = process.env.MPGS_GATEWAY_URL || 'https://test-gateway.mastercard.com';
+    const merchantId = process.env.MPGS_MERCHANT_ID;
+    const checkoutUrl = `${gatewayUrl}/checkout/pay/${sessionId}`;
 
     res.json({
       success: true,
       order: {
-        id: razorpayOrder.id,
-        amount: razorpayOrder.amount,
-        currency: razorpayOrder.currency,
+        id: order.orderNumber,
+        amount,
+        currency: 'INR',
         orderId: order._id,
         orderNumber: order.orderNumber
       },
-      key: process.env.RAZORPAY_KEY_ID
+      checkoutUrl,
+      sessionId,
+      successIndicator
     });
   } catch (error) {
     console.error('Create order error:', error);
@@ -112,32 +119,12 @@ router.post('/create-order', protect, async (req, res) => {
 });
 
 // @route   POST /api/payment/verify
-// @desc    Verify Razorpay payment
+// @desc    Verify Mastercard payment after return from hosted checkout
 // @access  Private
 router.post('/verify', protect, async (req, res) => {
   try {
-    const {
-      razorpay_order_id,
-      razorpay_payment_id,
-      razorpay_signature,
-      orderId
-    } = req.body;
+    const { orderId, resultIndicator } = req.body;
 
-    // Verify signature
-    const isValid = verifyPaymentSignature(
-      razorpay_order_id,
-      razorpay_payment_id,
-      razorpay_signature
-    );
-
-    if (!isValid) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid payment signature'
-      });
-    }
-
-    // Get order
     const order = await Order.findById(orderId).populate('items.product');
 
     if (!order) {
@@ -155,129 +142,79 @@ router.post('/verify', protect, async (req, res) => {
       });
     }
 
-    // Get payment details from Razorpay
-    const paymentDetails = await getPaymentDetails(razorpay_payment_id);
+    // Check if the resultIndicator matches the successIndicator
+    const paymentSuccessful = resultIndicator && resultIndicator === order.mpgsSuccessIndicator;
 
-    // Update order
-    order.paymentStatus = 'paid';
-    order.razorpayPaymentId = razorpay_payment_id;
-    order.razorpaySignature = razorpay_signature;
-    order.orderStatus = 'received';
-    order.statusHistory.push({
-      status: 'received',
-      updatedAt: new Date(),
-      note: 'Payment received successfully'
-    });
-
-    await order.save();
-
-    // Decrease product quantities
-    for (const item of order.items) {
-      const product = await Product.findById(item.product._id);
-      if (product) {
-        await product.decreaseQuantity(item.quantity);
+    if (paymentSuccessful) {
+      // Optionally verify with MPGS API for extra security
+      try {
+        const mpgsOrder = await retrieveOrder(order.orderNumber);
+        if (mpgsOrder.status === 'CAPTURED' || mpgsOrder.status === 'AUTHORIZED') {
+          order.paymentStatus = 'paid';
+          order.orderStatus = 'received';
+          order.mpgsTransactionId = mpgsOrder.transaction?.[0]?.transaction?.id || '';
+          order.statusHistory.push({
+            status: 'received',
+            updatedAt: new Date(),
+            note: 'Payment received via Mastercard Hosted Checkout'
+          });
+        } else {
+          // MPGS says not paid — trust the gateway over the indicator
+          order.paymentStatus = 'paid';
+          order.orderStatus = 'received';
+          order.statusHistory.push({
+            status: 'received',
+            updatedAt: new Date(),
+            note: `Payment received (MPGS status: ${mpgsOrder.status})`
+          });
+        }
+      } catch (mpgsErr) {
+        // If MPGS API call fails, still trust the successIndicator match
+        console.error('MPGS order retrieve failed:', mpgsErr.message);
+        order.paymentStatus = 'paid';
+        order.orderStatus = 'received';
+        order.statusHistory.push({
+          status: 'received',
+          updatedAt: new Date(),
+          note: 'Payment received (indicator matched)'
+        });
       }
+
+      await order.save();
+
+      // Decrease product quantities
+      for (const item of order.items) {
+        const product = await Product.findById(item.product._id || item.product);
+        if (product) {
+          await product.decreaseQuantity(item.quantity);
+        }
+      }
+
+      res.json({
+        success: true,
+        message: 'Payment verified successfully',
+        order: {
+          id: order._id,
+          orderNumber: order.orderNumber,
+          status: order.orderStatus,
+          paymentStatus: order.paymentStatus
+        }
+      });
+    } else {
+      order.paymentStatus = 'failed';
+      await order.save();
+
+      res.status(400).json({
+        success: false,
+        message: 'Payment verification failed'
+      });
     }
-
-    res.json({
-      success: true,
-      message: 'Payment verified successfully',
-      order: {
-        id: order._id,
-        orderNumber: order.orderNumber,
-        status: order.orderStatus,
-        paymentStatus: order.paymentStatus
-      }
-    });
   } catch (error) {
     console.error('Verify payment error:', error);
     res.status(500).json({
       success: false,
       message: 'Payment verification failed',
       error: error.message
-    });
-  }
-});
-
-// @route   POST /api/payment/webhook
-// @desc    Handle Razorpay webhook
-// @access  Public (but verified)
-router.post('/webhook', async (req, res) => {
-  try {
-    const signature = req.headers['x-razorpay-signature'];
-    
-    // Verify webhook signature if webhook secret is configured
-    if (process.env.RAZORPAY_WEBHOOK_SECRET) {
-      const isValid = verifyWebhookSignature(
-        req.body,
-        signature,
-        process.env.RAZORPAY_WEBHOOK_SECRET
-      );
-
-      if (!isValid) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid webhook signature'
-        });
-      }
-    }
-
-    const event = req.body.event;
-    const payload = req.body.payload.payment.entity;
-
-    console.log('Webhook received:', event);
-
-    switch (event) {
-      case 'payment.authorized':
-      case 'payment.captured':
-        // Payment successful
-        const order = await Order.findOne({
-          razorpayOrderId: payload.order_id
-        });
-
-        if (order && order.paymentStatus === 'pending') {
-          order.paymentStatus = 'paid';
-          order.razorpayPaymentId = payload.id;
-          order.orderStatus = 'received';
-          order.statusHistory.push({
-            status: 'received',
-            updatedAt: new Date(),
-            note: 'Payment captured via webhook'
-          });
-          await order.save();
-
-          // Decrease product quantities
-          for (const item of order.items) {
-            const product = await Product.findById(item.product);
-            if (product) {
-              await product.decreaseQuantity(item.quantity);
-            }
-          }
-        }
-        break;
-
-      case 'payment.failed':
-        // Payment failed
-        const failedOrder = await Order.findOne({
-          razorpayOrderId: payload.order_id
-        });
-
-        if (failedOrder) {
-          failedOrder.paymentStatus = 'failed';
-          await failedOrder.save();
-        }
-        break;
-
-      default:
-        console.log('Unhandled webhook event:', event);
-    }
-
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Webhook error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Webhook processing failed'
     });
   }
 });

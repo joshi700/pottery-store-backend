@@ -99,8 +99,8 @@ const orderSchema = new mongoose.Schema({
   },
   paymentMethod: {
     type: String,
-    enum: ['razorpay', 'stripe'],
-    default: 'razorpay'
+    enum: ['razorpay', 'stripe', 'mastercard'],
+    default: 'mastercard'
   },
   paymentStatus: {
     type: String,
@@ -113,6 +113,9 @@ const orderSchema = new mongoose.Schema({
   stripePaymentIntentId: String,
   stripePaymentMethodId: String,
   checkoutSessionId: String,
+  mpgsSessionId: String,
+  mpgsSuccessIndicator: String,
+  mpgsTransactionId: String,
   source: {
     type: String,
     enum: ['web', 'agent'],
