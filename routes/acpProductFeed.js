@@ -27,8 +27,8 @@ router.get('/products.json', async (req, res) => {
         description: product.description,
         url: `${clientUrl}/product/${product._id}`,
         price: {
-          amount: Math.round(product.price * 100), // paise
-          currency: 'inr'
+          amount: Math.round(product.price * 100), // cents
+          currency: 'usd'
         },
         images: product.images.map(img => ({ url: img })),
         availability: {

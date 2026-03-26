@@ -57,8 +57,8 @@ router.get('/products', async (req, res) => {
           description: p.description,
           price: {
             amount: p.price,
-            currency: 'INR',
-            formatted: `₹${p.price.toLocaleString()}`,
+            currency: 'USD',
+            formatted: `$${p.price.toLocaleString()}`,
           },
           images: p.images,
           category: p.category,
@@ -120,8 +120,8 @@ router.get('/products/:id', async (req, res) => {
         description: product.description,
         price: {
           amount: product.price,
-          currency: 'INR',
-          formatted: `₹${product.price.toLocaleString()}`,
+          currency: 'USD',
+          formatted: `$${product.price.toLocaleString()}`,
         },
         images: product.images,
         category: product.category,
@@ -304,7 +304,7 @@ router.post('/checkout', protect, async (req, res) => {
           subtotal,
           shippingCost,
           total,
-          currency: 'INR',
+          currency: 'USD',
           items: orderItems.map(item => ({
             name: item.name,
             price: item.price,

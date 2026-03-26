@@ -19,8 +19,8 @@ function getRazorpay() {
 exports.createRazorpayOrder = async (amount, receipt, notes = {}) => {
   try {
     const options = {
-      amount: amount * 100, // Amount in paise
-      currency: 'INR',
+      amount: amount * 100, // Amount in cents
+      currency: 'USD',
       receipt: receipt,
       notes: notes
     };

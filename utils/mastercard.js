@@ -1,11 +1,11 @@
-const https = require('https');
+const axios = require('axios');
 
-const MPGS_VERSION = '78';
+const MPGS_VERSION = '73';
 
 function getConfig() {
   const merchantId = process.env.MPGS_MERCHANT_ID;
   const apiPassword = process.env.MPGS_API_PASSWORD;
-  const gatewayUrl = process.env.MPGS_GATEWAY_URL || 'https://test-gateway.mastercard.com';
+  const gatewayUrl = process.env.MPGS_GATEWAY_URL || 'https://mtf.gateway.mastercard.com';
 
   if (!merchantId || !apiPassword) {
     throw new Error('Mastercard gateway credentials not configured');
@@ -15,74 +15,25 @@ function getConfig() {
 }
 
 /**
- * Make a request to the MPGS REST API
+ * Create a Hosted Checkout session using the same pattern as HCO-Payment-Page-Backend
  */
-function mpgsRequest(method, path, body = null) {
+async function createCheckoutSession(orderId, amount, currency, returnUrl, description) {
   const { merchantId, apiPassword, gatewayUrl } = getConfig();
 
-  const url = new URL(`${gatewayUrl}/api/rest/version/${MPGS_VERSION}/merchant/${merchantId}${path}`);
-  const auth = Buffer.from(`merchant.${merchantId}:${apiPassword}`).toString('base64');
+  // Build the MPGS API URL — same as HCO backend
+  const url = `${gatewayUrl}/api/rest/version/${MPGS_VERSION}/merchant/${merchantId}/session`;
 
-  return new Promise((resolve, reject) => {
-    const options = {
-      hostname: url.hostname,
-      port: 443,
-      path: url.pathname,
-      method,
-      headers: {
-        'Authorization': `Basic ${auth}`,
-        'Content-Type': 'application/json',
-      },
-    };
+  // Auth: merchant.<MID>:<password> — same as HCO backend
+  const username = `merchant.${merchantId}`;
+  const auth = Buffer.from(`${username}:${apiPassword}`).toString('base64');
 
-    const req = https.request(options, (res) => {
-      let data = '';
-      res.on('data', (chunk) => { data += chunk; });
-      res.on('end', () => {
-        try {
-          const parsed = JSON.parse(data);
-          if (res.statusCode >= 400) {
-            const err = new Error(parsed.error?.explanation || `MPGS API error: ${res.statusCode}`);
-            err.response = parsed;
-            err.statusCode = res.statusCode;
-            reject(err);
-          } else {
-            resolve(parsed);
-          }
-        } catch (e) {
-          reject(new Error(`Failed to parse MPGS response: ${data}`));
-        }
-      });
-    });
-
-    req.on('error', reject);
-
-    if (body) {
-      req.write(JSON.stringify(body));
-    }
-    req.end();
-  });
-}
-
-/**
- * Create a Hosted Checkout session
- * @param {string} orderId - Unique order ID
- * @param {number} amount - Amount in major currency units (e.g., rupees, not paise)
- * @param {string} currency - ISO 4217 currency code (e.g., 'INR')
- * @param {string} returnUrl - URL to redirect after payment
- * @param {object} orderDescription - Optional description
- * @returns {object} { sessionId, successIndicator }
- */
-async function createCheckoutSession(orderId, amount, currency, returnUrl, orderDescription = '') {
-  const { merchantId } = getConfig();
-
-  const body = {
+  const payload = {
     apiOperation: 'INITIATE_CHECKOUT',
     interaction: {
       operation: 'PURCHASE',
       returnUrl,
       merchant: {
-        name: 'Pottery Store',
+        name: 'Meenakshi Pottery',
       },
       displayControl: {
         billingAddress: 'HIDE',
@@ -93,39 +44,53 @@ async function createCheckoutSession(orderId, amount, currency, returnUrl, order
       id: orderId,
       amount: String(amount),
       currency: currency.toUpperCase(),
-      description: orderDescription || `Pottery Store Order ${orderId}`,
+      description: description || `Pottery Store Order ${orderId}`,
     },
   };
 
-  const result = await mpgsRequest('POST', '/session', body);
+  console.log('Creating MPGS session:', { url, merchantId, orderId, amount, currency });
+
+  const response = await axios.post(url, payload, {
+    headers: {
+      'Authorization': `Basic ${auth}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  console.log('MPGS session created:', {
+    sessionId: response.data.session?.id,
+    successIndicator: response.data.successIndicator,
+  });
 
   return {
-    sessionId: result.session.id,
-    successIndicator: result.successIndicator,
+    sessionId: response.data.session.id,
+    successIndicator: response.data.successIndicator,
   };
 }
 
 /**
  * Retrieve order details from MPGS to verify payment
- * @param {string} orderId - The order ID used during checkout
- * @returns {object} MPGS order details
  */
 async function retrieveOrder(orderId) {
-  return mpgsRequest('GET', `/order/${orderId}`);
-}
+  const { merchantId, apiPassword, gatewayUrl } = getConfig();
 
-/**
- * Retrieve transaction details
- * @param {string} orderId - The order ID
- * @param {string} transactionId - The transaction ID
- * @returns {object} MPGS transaction details
- */
-async function retrieveTransaction(orderId, transactionId) {
-  return mpgsRequest('GET', `/order/${orderId}/transaction/${transactionId}`);
+  const url = `${gatewayUrl}/api/rest/version/${MPGS_VERSION}/merchant/${merchantId}/order/${orderId}`;
+  const username = `merchant.${merchantId}`;
+  const auth = Buffer.from(`${username}:${apiPassword}`).toString('base64');
+
+  const response = await axios.get(url, {
+    headers: {
+      'Authorization': `Basic ${auth}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  return response.data;
 }
 
 module.exports = {
   createCheckoutSession,
   retrieveOrder,
-  retrieveTransaction,
+  MPGS_VERSION,
+  getConfig,
 };

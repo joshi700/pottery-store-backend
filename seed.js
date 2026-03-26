@@ -35,7 +35,7 @@ const seedDatabase = async () => {
       {
         name: 'Handcrafted Ceramic Bowl',
         description: 'A beautiful handcrafted ceramic bowl with a rustic glaze finish. Perfect for serving salads or as a decorative piece.',
-        price: 1299,
+        price: 49.99,
         images: [
           'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?w=800',
           'https://images.unsplash.com/photo-1610701596007-11502861dcfa?w=800'
@@ -56,7 +56,7 @@ const seedDatabase = async () => {
       {
         name: 'Modern Minimalist Plate Set',
         description: 'Set of 2 elegant white ceramic plates with a smooth matte finish. Perfect for everyday dining or special occasions.',
-        price: 1899,
+        price: 69.99,
         images: [
           'https://images.unsplash.com/photo-1590422749897-47036da0b0ff?w=800',
           'https://images.unsplash.com/photo-1610701596007-11502861dcfa?w=800'
@@ -77,7 +77,7 @@ const seedDatabase = async () => {
       {
         name: 'Terracotta Coffee Mug',
         description: 'Warm terracotta coffee mug with a comfortable handle. Keeps your beverage warm longer.',
-        price: 599,
+        price: 24.99,
         images: [
           'https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?w=800',
           'https://images.unsplash.com/photo-1609081219090-a6d81d3085bf?w=800'
@@ -98,7 +98,7 @@ const seedDatabase = async () => {
       {
         name: 'Blue Glazed Vase',
         description: 'Stunning blue-glazed ceramic vase with unique drip patterns. Perfect for fresh flowers or as a standalone piece.',
-        price: 2499,
+        price: 89.99,
         images: [
           'https://images.unsplash.com/photo-1578500494198-246f612d3b3d?w=800',
           'https://images.unsplash.com/photo-1615485290382-441e4d049cb5?w=800'
@@ -119,7 +119,7 @@ const seedDatabase = async () => {
       {
         name: 'Rustic Serving Platter',
         description: 'Large oval serving platter with a beautiful rustic finish. Ideal for entertaining guests.',
-        price: 1799,
+        price: 64.99,
         images: [
           'https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?w=800'
         ],
@@ -139,7 +139,7 @@ const seedDatabase = async () => {
       {
         name: 'Handpainted Decorative Pot',
         description: 'Small decorative pot with intricate handpainted designs. Great for small plants or as a trinket holder.',
-        price: 899,
+        price: 34.99,
         images: [
           'https://images.unsplash.com/photo-1612196808214-b8e1d6145a8c?w=800'
         ],
@@ -159,7 +159,7 @@ const seedDatabase = async () => {
       {
         name: 'Textured Mixing Bowl',
         description: 'Large mixing bowl with an interesting textured exterior. Functional and beautiful.',
-        price: 1499,
+        price: 54.99,
         images: [
           'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?w=800'
         ],
@@ -179,7 +179,7 @@ const seedDatabase = async () => {
       {
         name: 'Ceramic Espresso Cup Set',
         description: 'Set of 4 small espresso cups with matching saucers. Perfect for your morning coffee ritual.',
-        price: 1199,
+        price: 44.99,
         images: [
           'https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?w=800'
         ],

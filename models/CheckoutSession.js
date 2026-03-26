@@ -9,7 +9,7 @@ const lineItemSchema = new mongoose.Schema({
   },
   name: String,
   image: String,
-  base_amount: { type: Number, required: true },  // paise
+  base_amount: { type: Number, required: true },  // cents
   discount: { type: Number, default: 0 },
   subtotal: { type: Number, required: true },
   tax: { type: Number, default: 0 },
@@ -60,7 +60,7 @@ const checkoutSessionSchema = new mongoose.Schema({
     quantity: { type: Number, required: true, min: 1 }
   }],
 
-  // Resolved line items with pricing (paise)
+  // Resolved line items with pricing (cents)
   lineItems: [lineItemSchema],
 
   // Buyer info
@@ -77,7 +77,7 @@ const checkoutSessionSchema = new mongoose.Schema({
     line_two: String,
     city: String,
     state: String,
-    country: { type: String, default: 'IN' },
+    country: { type: String, default: 'US' },
     postal_code: String,
     phone_number: String
   },
@@ -86,7 +86,7 @@ const checkoutSessionSchema = new mongoose.Schema({
   selectedFulfillmentOptionId: String,
   fulfillmentOptions: [fulfillmentOptionSchema],
 
-  // Totals (all in paise)
+  // Totals (all in cents)
   totals: {
     subtotal: { type: Number, default: 0 },
     shipping: { type: Number, default: 0 },

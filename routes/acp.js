@@ -12,7 +12,7 @@ router.use(verifyACPSignature);
 router.use(handleIdempotency);
 
 // ============================================================
-// Helper: Resolve items → line items with pricing (paise)
+// Helper: Resolve items → line items with pricing (cents)
 // ============================================================
 async function resolveLineItems(items, messages) {
   const lineItems = [];
@@ -76,22 +76,22 @@ async function resolveLineItems(items, messages) {
 // ============================================================
 // Helper: Calculate fulfillment options
 // ============================================================
-function calculateFulfillmentOptions(subtotalPaise) {
-  const freeShippingThreshold = 200000; // ₹2,000 in paise
-  const shippingCostPaise = subtotalPaise >= freeShippingThreshold ? 0 : 9900; // ₹99
+function calculateFulfillmentOptions(subtotalCents) {
+  const freeShippingThreshold = 15000; // $150 in cents
+  const shippingCostCents = subtotalCents >= freeShippingThreshold ? 0 : 999; // $9.99
 
   const options = [
     {
       type: 'shipping',
       id: 'standard_shipping',
       title: 'Standard Shipping',
-      subtitle: shippingCostPaise === 0 ? 'Free shipping on orders over ₹2,000' : '5-7 business days',
-      carrier: 'India Post / Courier',
+      subtitle: shippingCostCents === 0 ? 'Free shipping on orders over $150' : '5-7 business days',
+      carrier: 'USPS / UPS',
       earliest_delivery_time: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
       latest_delivery_time: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      subtotal: shippingCostPaise,
+      subtotal: shippingCostCents,
       tax: 0,
-      total: shippingCostPaise
+      total: shippingCostCents
     }
   ];
 
@@ -101,12 +101,12 @@ function calculateFulfillmentOptions(subtotalPaise) {
     id: 'express_shipping',
     title: 'Express Shipping',
     subtitle: '2-3 business days',
-    carrier: 'Premium Courier',
+    carrier: 'FedEx / UPS Express',
     earliest_delivery_time: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
     latest_delivery_time: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-    subtotal: 19900, // ₹199
+    subtotal: 1999, // $19.99
     tax: 0,
-    total: 19900
+    total: 1999
   });
 
   return options;
@@ -388,7 +388,7 @@ router.post('/checkout_sessions/:id/complete', async (req, res) => {
       addressLine2: addr.line_two || '',
       city: addr.city || '',
       state: addr.state || '',
-      pincode: addr.postal_code || ''
+      zipCode: addr.postal_code || ''
     };
 
     // Build order items
@@ -414,7 +414,7 @@ router.post('/checkout_sessions/:id/complete', async (req, res) => {
       items: orderItems,
       shippingAddress,
       billingAddress: shippingAddress,
-      subtotal: session.totals.subtotal / 100, // Convert paise to rupees
+      subtotal: session.totals.subtotal / 100, // Convert cents to dollars
       shippingCost: session.totals.shipping / 100,
       total: session.totals.total / 100,
       paymentMethod: 'stripe',
