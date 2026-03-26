@@ -193,4 +193,23 @@ router.post('/verify', protect, async (req, res) => {
   }
 });
 
+// @route   GET /api/payment/config-check
+// @desc    Check if MPGS config is set (no secrets exposed)
+// @access  Public
+router.get('/config-check', (req, res) => {
+  const hasMerchantId = !!process.env.MPGS_MERCHANT_ID;
+  const hasApiPassword = !!process.env.MPGS_API_PASSWORD;
+  const gatewayUrl = process.env.MPGS_GATEWAY_URL || 'https://mtf.gateway.mastercard.com (default)';
+
+  res.json({
+    success: true,
+    config: {
+      MPGS_MERCHANT_ID: hasMerchantId ? `SET (${process.env.MPGS_MERCHANT_ID})` : 'NOT SET',
+      MPGS_API_PASSWORD: hasApiPassword ? 'SET (hidden)' : 'NOT SET',
+      MPGS_GATEWAY_URL: gatewayUrl,
+      CLIENT_URL: process.env.CLIENT_URL || 'NOT SET',
+    }
+  });
+});
+
 module.exports = router;
