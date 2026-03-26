@@ -53,7 +53,7 @@ const orderSchema = new mongoose.Schema({
       type: String,
       required: true
     },
-    pincode: {
+    zipCode: {
       type: String,
       required: true
     }
@@ -80,7 +80,7 @@ const orderSchema = new mongoose.Schema({
       type: String,
       required: true
     },
-    pincode: {
+    zipCode: {
       type: String,
       required: true
     }
