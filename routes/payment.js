@@ -1,14 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../middleware/auth');
 const { processGooglePayPayment, retrieveOrder, MPGS_VERSION, getConfig } = require('../utils/mastercard');
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 
 // @route   POST /api/payment/create-order
 // @desc    Create order in database (no MPGS session needed for Google Pay)
-// @access  Private
-router.post('/create-order', protect, async (req, res) => {
+// @access  Public (guest checkout)
+router.post('/create-order', async (req, res) => {
   try {
     const { amount, orderData } = req.body;
 
@@ -59,9 +58,9 @@ router.post('/create-order', protect, async (req, res) => {
       });
     }
 
-    // Create order in database
+    // Create order in database (guest checkout - no user required)
     const order = await Order.create({
-      user: req.user.id,
+      user: null,
       items: orderData.items,
       shippingAddress: orderData.shippingAddress,
       billingAddress: orderData.billingAddress,
@@ -110,8 +109,8 @@ router.post('/create-order', protect, async (req, res) => {
 
 // @route   POST /api/payment/process-googlepay
 // @desc    Process Google Pay payment token through MPGS
-// @access  Private
-router.post('/process-googlepay', protect, async (req, res) => {
+// @access  Public (guest checkout)
+router.post('/process-googlepay', async (req, res) => {
   try {
     const { orderId, paymentData } = req.body;
 
@@ -128,14 +127,6 @@ router.post('/process-googlepay', protect, async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Order not found'
-      });
-    }
-
-    // Verify order belongs to user
-    if (order.user.toString() !== req.user.id) {
-      return res.status(403).json({
-        success: false,
-        message: 'Unauthorized'
       });
     }
 

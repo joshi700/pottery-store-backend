@@ -31,20 +31,9 @@ router.get('/my-orders', protect, async (req, res) => {
 
 // @route   GET /api/orders/:id
 // @desc    Get order by ID
-// @access  Private (customer or admin)
+// @access  Public (with orderNumber verification) or Private (admin)
 router.get('/:id', async (req, res) => {
   try {
-    let token;
-    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-      token = req.headers.authorization.split(' ')[1];
-    }
-
-    if (!token) {
-      return res.status(401).json({ success: false, message: 'Not authorized' });
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
     const order = await Order.findById(req.params.id)
       .populate('user', 'name email phone')
       .populate('items.product', 'name images price');
@@ -56,9 +45,26 @@ router.get('/:id', async (req, res) => {
       });
     }
 
-    // Allow if admin token or if customer owns the order
+    // Allow access if orderNumber query param matches (guest checkout receipt)
+    const orderNumber = req.query.orderNumber;
+    if (orderNumber && order.orderNumber === orderNumber) {
+      return res.json({ success: true, order });
+    }
+
+    // Otherwise require auth token (admin or order owner)
+    let token;
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+      token = req.headers.authorization.split(' ')[1];
+    }
+
+    if (!token) {
+      return res.status(401).json({ success: false, message: 'Not authorized' });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
     const isAdminToken = decoded.isAdmin && await Admin.findById(decoded.id);
-    const isOwner = order.user._id.toString() === decoded.id;
+    const isOwner = order.user && order.user._id.toString() === decoded.id;
 
     if (!isAdminToken && !isOwner) {
       return res.status(403).json({
