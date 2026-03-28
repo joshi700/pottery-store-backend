@@ -30,15 +30,16 @@ const seedDatabase = async () => {
     });
     console.log(`✅ Admin user created: ${adminEmail}`);
 
-    // Sample products
+    // Sample products with fixed IDs to match Google Merchant feed
     const sampleProducts = [
       {
+        _id: new mongoose.Types.ObjectId('69c4cf9cab387e77f81d6e63'),
         name: 'Handcrafted Ceramic Bowl',
         description: 'A beautiful handcrafted ceramic bowl with a rustic glaze finish. Perfect for serving salads or as a decorative piece.',
-        price: 49.99,
+        price: 29.99,
         images: [
-          'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?w=800',
-          'https://images.unsplash.com/photo-1610701596007-11502861dcfa?w=800'
+          'https://joshig.in/images/products/bowl-01.jpg',
+          'https://joshig.in/images/products/bowl-02.jpg'
         ],
         category: 'bowls',
         quantity: 1,
@@ -54,12 +55,13 @@ const seedDatabase = async () => {
         tags: ['handmade', 'ceramic', 'rustic', 'bowl']
       },
       {
+        _id: new mongoose.Types.ObjectId('69c4cf9cab387e77f81d6e64'),
         name: 'Modern Minimalist Plate Set',
         description: 'Set of 2 elegant white ceramic plates with a smooth matte finish. Perfect for everyday dining or special occasions.',
-        price: 69.99,
+        price: 39.99,
         images: [
-          'https://images.unsplash.com/photo-1590422749897-47036da0b0ff?w=800',
-          'https://images.unsplash.com/photo-1610701596007-11502861dcfa?w=800'
+          'https://joshig.in/images/products/plate-02.jpg',
+          'https://joshig.in/images/products/plate-01.jpg'
         ],
         category: 'plates',
         quantity: 1,
@@ -75,12 +77,13 @@ const seedDatabase = async () => {
         tags: ['minimalist', 'modern', 'white', 'plates']
       },
       {
+        _id: new mongoose.Types.ObjectId('69c4cf9cab387e77f81d6e65'),
         name: 'Terracotta Coffee Mug',
         description: 'Warm terracotta coffee mug with a comfortable handle. Keeps your beverage warm longer.',
-        price: 24.99,
+        price: 14.99,
         images: [
-          'https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?w=800',
-          'https://images.unsplash.com/photo-1609081219090-a6d81d3085bf?w=800'
+          'https://joshig.in/images/products/cup-01.jpg',
+          'https://joshig.in/images/products/cup-02.jpg'
         ],
         category: 'cups',
         quantity: 1,
@@ -96,12 +99,13 @@ const seedDatabase = async () => {
         tags: ['terracotta', 'coffee', 'mug', 'handmade']
       },
       {
+        _id: new mongoose.Types.ObjectId('69c4cf9cab387e77f81d6e66'),
         name: 'Blue Glazed Vase',
         description: 'Stunning blue-glazed ceramic vase with unique drip patterns. Perfect for fresh flowers or as a standalone piece.',
-        price: 89.99,
+        price: 44.99,
         images: [
-          'https://images.unsplash.com/photo-1578500494198-246f612d3b3d?w=800',
-          'https://images.unsplash.com/photo-1615485290382-441e4d049cb5?w=800'
+          'https://joshig.in/images/products/vase-01.jpg',
+          'https://joshig.in/images/products/vase-02.jpg'
         ],
         category: 'vases',
         quantity: 1,
@@ -117,11 +121,12 @@ const seedDatabase = async () => {
         tags: ['vase', 'blue', 'decorative', 'flowers']
       },
       {
+        _id: new mongoose.Types.ObjectId('69c4cf9cab387e77f81d6e67'),
         name: 'Rustic Serving Platter',
         description: 'Large oval serving platter with a beautiful rustic finish. Ideal for entertaining guests.',
-        price: 64.99,
+        price: 34.99,
         images: [
-          'https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?w=800'
+          'https://joshig.in/images/products/plate-01.jpg'
         ],
         category: 'plates',
         quantity: 1,
@@ -137,11 +142,12 @@ const seedDatabase = async () => {
         tags: ['platter', 'serving', 'rustic', 'entertaining']
       },
       {
+        _id: new mongoose.Types.ObjectId('69c4cf9cab387e77f81d6e68'),
         name: 'Handpainted Decorative Pot',
         description: 'Small decorative pot with intricate handpainted designs. Great for small plants or as a trinket holder.',
-        price: 34.99,
+        price: 19.99,
         images: [
-          'https://images.unsplash.com/photo-1612196808214-b8e1d6145a8c?w=800'
+          'https://joshig.in/images/products/decor-01.jpg'
         ],
         category: 'decorative',
         quantity: 1,
@@ -157,11 +163,12 @@ const seedDatabase = async () => {
         tags: ['decorative', 'handpainted', 'pot', 'unique']
       },
       {
+        _id: new mongoose.Types.ObjectId('69c4cf9cab387e77f81d6e69'),
         name: 'Textured Mixing Bowl',
         description: 'Large mixing bowl with an interesting textured exterior. Functional and beautiful.',
-        price: 54.99,
+        price: 32.99,
         images: [
-          'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?w=800'
+          'https://joshig.in/images/products/bowl-01.jpg'
         ],
         category: 'bowls',
         quantity: 1,
@@ -177,11 +184,12 @@ const seedDatabase = async () => {
         tags: ['bowl', 'mixing', 'textured', 'kitchen']
       },
       {
+        _id: new mongoose.Types.ObjectId('69c4cf9cab387e77f81d6e6a'),
         name: 'Ceramic Espresso Cup Set',
         description: 'Set of 4 small espresso cups with matching saucers. Perfect for your morning coffee ritual.',
-        price: 44.99,
+        price: 29.99,
         images: [
-          'https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?w=800'
+          'https://joshig.in/images/products/cup-01.jpg'
         ],
         category: 'cups',
         quantity: 1,
