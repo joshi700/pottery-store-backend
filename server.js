@@ -65,7 +65,6 @@ app.use('/api/orders', require('./routes/orders'));
 app.use('/api/payment', require('./routes/payment'));
 app.use('/api/admin/auth', require('./routes/adminAuth'));
 app.use('/api/agent', require('./routes/agent'));
-app.use('/api/update-prices', require('./routes/updatePrices')); // ONE-TIME: delete after use
 
 // ACP (Agentic Commerce Protocol) routes
 app.use('/acp', require('./routes/acp'));
