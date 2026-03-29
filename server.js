@@ -28,6 +28,10 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
+// Serve static files (product images)
+const path = require('path');
+app.use(express.static(path.join(__dirname, 'public')));
+
 // Lazy MongoDB connection (works with Vercel serverless)
 let dbConnected = false;
 async function ensureDB() {
