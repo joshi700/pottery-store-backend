@@ -52,7 +52,7 @@ async function resolveLineItems(items) {
         title: product.name,
         price: priceCents,
         image_url: product.images?.[0] || '',
-        link: `${process.env.CLIENT_URL || 'https://joshig.in'}/product/${product._id}`,
+        link: `${process.env.CLIENT_URL || 'https://meenapottery.com'}/product/${product._id}`,
       },
       quantity,
       totals: [
@@ -120,7 +120,7 @@ function getPaymentHandlers() {
 // 1. GET /.well-known/ucp — UCP Discovery Profile
 // ---------------------------------------------------------------------------
 router.get('/.well-known/ucp', (req, res) => {
-  const baseUrl = process.env.BASE_URL || process.env.CLIENT_URL || 'https://api.joshig.in';
+  const baseUrl = process.env.BASE_URL || process.env.CLIENT_URL || 'https://api.meenapottery.com';
 
   res.json({
     ucp: {
@@ -186,8 +186,8 @@ router.get('/.well-known/ucp', (req, res) => {
 // ---------------------------------------------------------------------------
 router.post('/checkout-sessions', async (req, res) => {
   try {
-    const baseUrl = process.env.BASE_URL || process.env.CLIENT_URL || 'https://api.joshig.in';
-    const clientUrl = process.env.CLIENT_URL || 'https://joshig.in';
+    const baseUrl = process.env.BASE_URL || process.env.CLIENT_URL || 'https://api.meenapottery.com';
+    const clientUrl = process.env.CLIENT_URL || 'https://meenapottery.com';
 
     // Accept UCP format (line_items[].item.id) or legacy (items[].sku)
     let items = req.body.line_items;
