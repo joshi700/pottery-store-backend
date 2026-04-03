@@ -19,12 +19,12 @@ const UCP_VERSION = '2026-01-23';
 const TAX_RATE = 0.0875; // 8.75%
 
 const SHIPPING_OPTIONS = [
-  { id: 'ship_standard', title: 'Standard Shipping (5-7 days)', total: 999 },
+  { id: 'ship_standard', title: 'Standard Shipping (5-7 days)', total: 599 },
   { id: 'ship_express', title: 'Express Shipping (2-3 days)', total: 1299 },
   { id: 'ship_overnight', title: 'Overnight Shipping (1 day)', total: 2499 },
 ];
 
-const FREE_SHIPPING_THRESHOLD = 15000; // $150 in cents
+const FREE_SHIPPING_THRESHOLD = 5000; // $50 in cents
 
 // ---------------------------------------------------------------------------
 // Helper: resolve product IDs from MongoDB and build line items (cents)

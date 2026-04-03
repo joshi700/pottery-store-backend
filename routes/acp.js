@@ -77,15 +77,15 @@ async function resolveLineItems(items, messages) {
 // Helper: Calculate fulfillment options
 // ============================================================
 function calculateFulfillmentOptions(subtotalCents) {
-  const freeShippingThreshold = 15000; // $150 in cents
-  const shippingCostCents = subtotalCents >= freeShippingThreshold ? 0 : 999; // $9.99
+  const freeShippingThreshold = 5000; // $50 in cents
+  const shippingCostCents = subtotalCents >= freeShippingThreshold ? 0 : 599; // $5.99
 
   const options = [
     {
       type: 'shipping',
       id: 'standard_shipping',
       title: 'Standard Shipping',
-      subtitle: shippingCostCents === 0 ? 'Free shipping on orders over $150' : '5-7 business days',
+      subtitle: shippingCostCents === 0 ? 'Free shipping on orders over $50' : '5-7 business days',
       carrier: 'USPS / UPS',
       earliest_delivery_time: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
       latest_delivery_time: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
