@@ -30,7 +30,7 @@ const seedDatabase = async () => {
     });
     console.log(`✅ Admin user created: ${adminEmail}`);
 
-    const IMG_BASE = 'https://raw.githubusercontent.com/joshi700/pottery-store-backend/master/public/images/products';
+    const IMG_BASE = '/images/products';
 
     // Meenakshi Pottery - Real product catalog
     const sampleProducts = [
