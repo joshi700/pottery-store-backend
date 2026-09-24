@@ -6,6 +6,24 @@ const { LIMITS, rateLimit, redactCardNumbers, sanitizeHistory } = require('../ag
 
 const router = express.Router();
 
+// The app-wide CORS config allows every origin. The chat endpoint costs money per
+// call, so browsers may only use it from the store's own site. Requests without an
+// Origin header (curl, server-to-server) are still subject to the rate limit.
+const ALLOWED_ORIGINS = new Set(
+  (process.env.CHAT_ALLOWED_ORIGINS || `${process.env.CLIENT_URL || 'http://localhost:5173'},https://meenapottery.com,https://www.meenapottery.com`)
+    .split(',')
+    .map(o => o.trim().replace(/\/$/, ''))
+    .filter(Boolean)
+);
+
+function allowedOrigin(req, res, next) {
+  const origin = req.headers.origin;
+  if (origin && !ALLOWED_ORIGINS.has(origin)) {
+    return res.status(403).json({ success: false, message: 'Chat is only available on meenapottery.com' });
+  }
+  next();
+}
+
 // Client cart is untrusted: keep only well-formed product ids and sane quantities
 function sanitizeCart(cart) {
   if (!Array.isArray(cart)) return [];
@@ -22,7 +40,7 @@ function sanitizePage(page) {
 // @route   POST /api/chat
 // @desc    AI shopping assistant
 // @access  Public (rate limited)
-router.post('/', rateLimit, async (req, res) => {
+router.post('/', allowedOrigin, rateLimit, async (req, res) => {
   if (!isConfigured()) {
     return res.status(503).json({ success: false, message: 'The chat assistant is not available right now. Please email gaurav@meenapottery.com.' });
   }
