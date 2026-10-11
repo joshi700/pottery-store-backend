@@ -44,8 +44,9 @@ async function tracedTool(call, ctx) {
   return out;
 }
 
-// Cards should match what the reply talks about: products it names, in the order
-// it names them; otherwise the latest tool results
+// Cards lead with the products the reply names (in the order it names them), then
+// the rest of the latest results — the reply only highlights one or two, but a
+// "show me your vases" request should still show every vase
 function cardsFor(reply, seen, latest) {
   const text = reply.toLowerCase();
   const named = seen
@@ -53,7 +54,8 @@ function cardsFor(reply, seen, latest) {
     .filter(x => x.at !== -1)
     .sort((a, b) => a.at - b.at)
     .map(x => x.p);
-  return (named.length ? named : latest).slice(0, 8);
+  const rest = latest.filter(p => !named.includes(p));
+  return [...named, ...rest].slice(0, 8);
 }
 
 async function loop(history, { cart, page }) {
