@@ -5,7 +5,11 @@ require('dotenv').config();
 const llmConfig = {
   baseUrl: (process.env.LLM_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta/openai').replace(/\/$/, ''),
   apiKey: process.env.LLM_API_KEY,
-  model: process.env.LLM_MODEL || 'gemini-2.5-flash',
+  model: process.env.LLM_MODEL || 'gemini-3.8-flash',
+  // Thinking models spend output tokens on hidden reasoning; "low" keeps replies fast
+  // and stops the reasoning from using up max_tokens. Set to "" for providers without it.
+  reasoningEffort: process.env.LLM_REASONING_EFFORT ?? 'low',
+  temperature: 0.3,
   maxTokens: 800,
   timeoutMs: 30000,
 };
@@ -14,6 +18,7 @@ function isConfigured() {
   return Boolean(llmConfig.apiKey);
 }
 
+// Returns { message, usage, finishReason }
 async function chatCompletion(messages, tools) {
   const res = await fetch(`${llmConfig.baseUrl}/chat/completions`, {
     method: 'POST',
@@ -25,8 +30,9 @@ async function chatCompletion(messages, tools) {
       model: llmConfig.model,
       messages,
       tools,
-      temperature: 0.3,
+      temperature: llmConfig.temperature,
       max_tokens: llmConfig.maxTokens,
+      ...(llmConfig.reasoningEffort && { reasoning_effort: llmConfig.reasoningEffort }),
     }),
     signal: AbortSignal.timeout(llmConfig.timeoutMs),
   });
@@ -38,7 +44,8 @@ async function chatCompletion(messages, tools) {
     throw err;
   }
   const data = await res.json();
-  return data.choices[0].message;
+  const choice = data.choices[0];
+  return { message: choice.message, usage: data.usage, finishReason: choice.finish_reason };
 }
 
 module.exports = { chatCompletion, isConfigured, llmConfig };

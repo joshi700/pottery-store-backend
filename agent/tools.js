@@ -28,7 +28,7 @@ const TOOL_DEFINITIONS = [
     description: 'Full details for one product: dimensions, materials, care instructions, the artist\'s story and stock.',
     parameters: {
       type: 'object',
-      properties: { product_id: { type: 'string' } },
+      properties: { product_id: { type: 'string', description: 'Product id from a tool result, or the exact product name' } },
       required: ['product_id'],
     },
   },
@@ -42,7 +42,7 @@ const TOOL_DEFINITIONS = [
     parameters: {
       type: 'object',
       properties: {
-        product_id: { type: 'string' },
+        product_id: { type: 'string', description: 'Product id from a tool result, or the exact product name' },
         quantity: { type: 'integer', minimum: 1, maximum: LIMITS.maxQuantity },
       },
       required: ['product_id'],
@@ -54,7 +54,7 @@ const TOOL_DEFINITIONS = [
     parameters: {
       type: 'object',
       properties: {
-        product_id: { type: 'string' },
+        product_id: { type: 'string', description: 'Product id from a tool result, or the exact product name' },
         quantity: { type: 'integer', minimum: 0, maximum: LIMITS.maxQuantity },
       },
       required: ['product_id', 'quantity'],
@@ -104,11 +104,23 @@ function cartProduct(p) {
   };
 }
 
-async function findProduct(id) {
-  if (!mongoose.isValidObjectId(id)) throw new ToolError(`No product with id ${id}`);
-  const product = await Product.findById(id).lean();
-  if (!product) throw new ToolError(`No product with id ${id}`);
-  return product;
+// Accepts an id or a product name: ids from earlier turns aren't in the model's
+// context, so it often refers to products by name instead
+async function findProduct(ref) {
+  const key = String(ref || '').trim();
+  if (mongoose.isValidObjectId(key)) {
+    const product = await Product.findById(key).lean();
+    if (product) return product;
+  }
+  const name = key.replace(/[-_]+/g, ' ');
+  const matches = name.length > 2
+    ? await Product.find({ name: new RegExp(escapeRegex(name), 'i') }).limit(5).lean()
+    : [];
+  if (matches.length === 1) return matches[0];
+  if (matches.length > 1) {
+    throw new ToolError(`"${key}" matches several products: ${matches.map(p => `${p.name} (id ${p._id})`).join('; ')}. Ask which one.`);
+  }
+  throw new ToolError(`No product found for "${key}". Use search_products to find it.`);
 }
 
 // Re-price the client's cart from the database (client prices are never trusted)
@@ -176,8 +188,9 @@ const HANDLERS = {
     return { result: await pricedCart(ctx.cart) };
   },
 
-  async add_to_cart({ product_id, quantity = 1 }, ctx) {
-    const p = await findProduct(product_id);
+  async add_to_cart({ product_id: ref, quantity = 1 }, ctx) {
+    const p = await findProduct(ref);
+    const product_id = String(p._id);
     if (!inStock(p)) throw new ToolError(`${p.name} is sold out.`);
     const current = ctx.cart.find(l => l.product_id === product_id)?.quantity || 0;
     const qty = Math.min(current + Math.max(1, Math.min(quantity, LIMITS.maxQuantity)), p.quantity);
@@ -189,9 +202,10 @@ const HANDLERS = {
     };
   },
 
-  async update_cart_item({ product_id, quantity }, ctx) {
-    if (!ctx.cart.some(l => l.product_id === product_id)) throw new ToolError('That product is not in the cart.');
-    const p = await findProduct(product_id);
+  async update_cart_item({ product_id: ref, quantity }, ctx) {
+    const p = await findProduct(ref);
+    const product_id = String(p._id);
+    if (!ctx.cart.some(l => l.product_id === product_id)) throw new ToolError(`${p.name} is not in the cart.`);
     const qty = Math.max(0, Math.min(quantity, p.quantity, LIMITS.maxQuantity));
     setCartLine(ctx, product_id, qty);
     return {

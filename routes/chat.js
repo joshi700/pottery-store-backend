@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const { runAgent } = require('../agent/agent');
 const { isConfigured } = require('../agent/llm');
+const { flushTraces } = require('../agent/observability');
 const { LIMITS, rateLimit, redactCardNumbers, sanitizeHistory } = require('../agent/guardrails');
 
 const router = express.Router();
@@ -31,6 +32,11 @@ function sanitizeCart(cart) {
     .filter(l => mongoose.isValidObjectId(l?.product_id) && Number.isInteger(l.quantity) && l.quantity > 0)
     .slice(0, LIMITS.maxCartLines)
     .map(l => ({ product_id: String(l.product_id), quantity: Math.min(l.quantity, 100) }));
+}
+
+// Random per-tab id from the widget; groups a conversation's turns in Langfuse
+function sanitizeSessionId(id) {
+  return typeof id === 'string' && /^[\w-]{8,64}$/.test(id) ? id : null;
 }
 
 function sanitizePage(page) {
@@ -65,10 +71,16 @@ router.post('/', allowedOrigin, rateLimit, async (req, res) => {
   }
 
   try {
-    const result = await runAgent(history, { cart: sanitizeCart(req.body.cart), page: sanitizePage(req.body.page) });
+    const result = await runAgent(history, {
+      cart: sanitizeCart(req.body.cart),
+      page: sanitizePage(req.body.page),
+      sessionId: sanitizeSessionId(req.body.session_id),
+    });
+    await flushTraces();
     res.json({ success: true, ...result, redacted });
   } catch (err) {
     console.error('[Chat] Agent error:', err.message);
+    await flushTraces();
     const busy = err.status === 429;
     res.status(busy ? 429 : 502).json({
       success: false,
