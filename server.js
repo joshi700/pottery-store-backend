@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 
 const app = express();
+app.set('trust proxy', 1); // Behind Vercel's proxy — gives the real client IP for rate limiting
 
 // Middleware
 app.use(express.json());
@@ -69,6 +70,7 @@ app.use('/api/orders', require('./routes/orders'));
 app.use('/api/payment', require('./routes/payment'));
 app.use('/api/admin/auth', require('./routes/adminAuth'));
 app.use('/api/agent', require('./routes/agent'));
+app.use('/api/chat', require('./routes/chat'));
 
 // ACP (Agentic Commerce Protocol) routes
 app.use('/acp', require('./routes/acp'));
